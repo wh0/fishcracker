@@ -1,0 +1,78 @@
+{
+  "displayName": "Getting Fish-Shaped Crackers back in Vending Machines",
+  "name": "fishcracker",
+  "version": "1.0.0",
+  "publisher": "wh0",
+  "license": "MIT",
+  "repository": "github:wh0/fishcracker",
+  "main": "./extension.js",
+  "browser": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "wh0.fishcracker.test",
+        "title": "wh0.fishcracker Test"
+      },
+      {
+        "command": "wh0.fishcracker.auth.persistent_token",
+        "title": "Sign in with Glitch Persistent Token"
+      },
+      {
+        "command": "wh0.fishcracker.logout",
+        "title": "Delete Saved Glitch Persistent Token"
+      },
+      {
+        "command": "wh0.fishcracker.open_project",
+        "title": "Open Glitch Project"
+      },
+      {
+        "command": "wh0.fishcracker.logs",
+        "title": "Open Glitch Logs"
+      },
+      {
+        "command": "wh0.fishcracker.term_command",
+        "title": "Open Glitch Terminal"
+      }
+    ],
+    "terminal": {
+      "profiles": [
+        {
+          "id": "wh0.fishcracker.term",
+          "title": "Glitch Terminal"
+        }
+      ]
+    }
+  },
+  "activationEvents": [
+    "onFileSystem:fishcracker"
+  ],
+  "icon": "icon.png",
+  "glitch": {
+    "projectType": "generated_static",
+    "buildDirectory": "greeter"
+  },
+  "scripts": {
+    "start": "cd greeter && python3 -m http.server $PORT",
+    "wbuild": "webpack",
+    "wserve": "node serve.js"
+  },
+  "webpackAlias": {
+    "ws": "./browser/ws.js"
+  },
+  "engines": {
+    "node": ">=16",
+    "vscode": "^1.98.0"
+  },
+  "dependencies": {
+    "socket.io-client": "^2.5.0",
+    "ws": "~7.5.10"
+  },
+  "devDependencies": {
+    "@types/socket.io-client": "^1.4.36",
+    "@types/vscode": "^1.98.0",
+    "express": "^4.21.2",
+    "typescript": "^5.8.2",
+    "webpack": "^5.98.0",
+    "webpack-cli": "^6.0.1"
+  }
+}
