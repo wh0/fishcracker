@@ -5,6 +5,7 @@
   "publisher": "wh0",
   "license": "MIT",
   "repository": "github:wh0/fishcracker",
+  "description": "An extention to allow you to edit Glitch project from Visual Studio. 🐟",
   "main": "./extension.js",
   "browser": "./dist/extension.js",
   "contributes": {
