@@ -2,6 +2,16 @@ console.log('fishcracker enter extension.js'); // %%%
 
 const vscode = require('vscode');
 
+async function glitchBoot(/** @type {string} */ persistentToken) {
+  const res = await fetch('https://api.glitch.com/boot?lastestProjectOnly=true', {
+    headers: {
+      'Authorization': persistentToken,
+    },
+  });
+  if (!res.ok) throw new Error(`Glitch v0 boot response ${res.status} not ok, body ${await res.text()}`);
+  return await res.json();
+}
+
 async function glitchProjectFromId(/** @type {string} */ persistentToken, /** @type {string} */ id) {
   const res = await fetch(`https://api.glitch.com/v1/projects/by/id?id=${id}`, {
     headers: {
@@ -1124,6 +1134,36 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
       name: projectInfoPrompted.name,
     };
     vscode.workspace.updateWorkspaceFolders(end, 0, folderSpec);
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('wh0.fishcracker.request_join', async () => {
+    const projectInfo = await fcGetProjectInfoHowever();
+    if (!projectInfo) return;
+    const persistentToken = await fcGetPersistentToken();
+    const {user} = await glitchBoot(persistentToken);
+    const c = await fcGetReadyOtClient(projectInfo.id);
+    const fallbackName = `fc-${(0x10000 + Math.floor(Math.random() * 0x10000)).toString(16).slice(1)}`;
+    const nagUser = {
+      avatarUrl: user.avatarUrl || 'https://fishcracker.glitch.me/join.png',
+      avatarThumbnailUrl: user.avatarThumbnailUrl,
+      awaitingInvite: true,
+      id: user.id,
+      name: user.name || fallbackName,
+      login: user.login,
+      color: user.color,
+      projectPermission: {
+        userId: user.id,
+        projectId: projectInfo.id,
+        accessLevel: 0,
+      },
+    };
+    otClientSend(c, {
+      type: 'broadcast',
+      payload: {
+        user: nagUser,
+      },
+    });
+    vscode.window.showInformationMessage(`Requesting to join as ${nagUser.name}`);
   }));
 
   const /** @type {{[projectId: string]: vscode.LogOutputChannel}} */ fcLogOutputChannels = {};

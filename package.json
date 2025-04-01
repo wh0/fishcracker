@@ -27,6 +27,10 @@
         "title": "Open Glitch Project"
       },
       {
+        "command": "wh0.fishcracker.request_join",
+        "title": "Request To Join Glitch Project"
+      },
+      {
         "command": "wh0.fishcracker.logs",
         "title": "Open Glitch Logs"
       },
