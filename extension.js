@@ -717,6 +717,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
       function cleanup() {
         delete fcOtDisposables[projectId];
         delete fcOtClientsReady[projectId];
+        disposable.dispose();
       }
       fcOtClientsReady[projectId] = (async () => {
         let persistentToken, c;
@@ -827,6 +828,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
       function cleanup() {
         delete fcLogsDisposables[projectId];
         delete fcLogsStreaming[projectId];
+        disposable.dispose();
       }
       function connect() {
         (async () => {
@@ -899,6 +901,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
     });
     function cleanup() {
       fcTerminalDisposables.delete(disposable);
+      disposable.dispose();
     }
     let terminalToken;
     try {
