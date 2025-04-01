@@ -53,9 +53,7 @@
     "buildDirectory": "greeter"
   },
   "scripts": {
-    "start": "cd greeter && python3 -m http.server $PORT",
-    "wbuild": "webpack",
-    "wserve": "node serve.js"
+    "start": "cd greeter && python3 -m http.server $PORT"
   },
   "webpackAlias": {
     "ws": "./browser/ws.js"
@@ -71,7 +69,6 @@
   "devDependencies": {
     "@types/socket.io-client": "^1.4.36",
     "@types/vscode": "^1.98.0",
-    "express": "^4.21.2",
     "typescript": "^5.8.2",
     "webpack": "^5.98.0",
     "webpack-cli": "^6.0.1"

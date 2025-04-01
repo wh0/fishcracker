@@ -1,3 +1,7 @@
 /dist
+/greeter/callback.html
+/greeter/workbench.html
+/greeter/static/build
+/greeter/static/devextensions
 /node_modules
 /*.vsix
