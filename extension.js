@@ -545,22 +545,24 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
   }
 
   function fcFileSize(/** @type {OtDocFileText | OtDocFileBinary} */ doc) {
-    if ('content' in doc) {
-      return new TextEncoder().encode(doc.content).length;
-    } else {
+    if ('base64Content' in doc) {
       return atob(doc.base64Content).length;
+    } else {
+      return new TextEncoder().encode(doc.content).length;
     }
   }
 
   function fcFileBytes(/** @type {OtDocFileText | OtDocFileBinary} */ doc) {
-    if ('content' in doc) return new TextEncoder().encode(doc.content);
-    const binaryStr = atob(doc.base64Content);
-    const byteLength = binaryStr.length;
-    const bytes = new Uint8Array(byteLength);
-    for (let i = 0; i < byteLength; i++) {
-      bytes[i] = binaryStr.charCodeAt(i);
+    if ('base64Content' in doc) {
+      const binaryStr = atob(doc.base64Content);
+      const byteLength = binaryStr.length;
+      const bytes = new Uint8Array(byteLength);
+      for (let i = 0; i < byteLength; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+      }
+      return bytes;
     }
-    return bytes;
+    return new TextEncoder().encode(doc.content);
   }
 
   async function fcSendAddDirectory(/** @type {OtClient} */ c, /** @type {OtDocDirectory} */ parentDoc, /** @type {string} */ name) {
@@ -1068,10 +1070,10 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
         if (!options.overwrite) throw vscode.FileSystemError.FileExists(`${parentDoc.docId}/${name}`);
         const doc = await fcRequireDoc(c, parentDoc.children[name].docId);
         fcRequireFile(doc);
-        if ('content' in doc) {
-          await fcSendReplaceContent(c, doc, contentStr);
-        } else {
+        if ('base64Content' in doc) {
           await fcSendReplaceFile(c, doc, contentStr);
+        } else {
+          await fcSendReplaceContent(c, doc, contentStr);
         }
       } else {
         if (!options.create) throw vscode.FileSystemError.FileNotFound(`${parentDoc.docId}/${name}`);
