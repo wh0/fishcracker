@@ -46,7 +46,18 @@
           "title": "Glitch Terminal"
         }
       ]
-    }
+    },
+    "viewsWelcome": [
+      {
+        "view": "explorer",
+        "contents": "[Open Glitch Project](command:wh0.fishcracker.open_project)"
+      },
+      {
+        "view": "terminal",
+        "contents": "[Open Glitch Terminal](command:wh0.fishcracker.term_command)",
+        "when": "isWeb && resourceScheme == fishcracker"
+      }
+    ]
   },
   "activationEvents": [
     "onFileSystem:fishcracker"
