@@ -4,10 +4,10 @@
 
 ## Commands
 
-1. `auth.persistent_token`: Sign in with your Glitch persistent token
+1. `auth`: Sign in to Glitch with a sign-in code, as a new anonymous user, or with your persistent token
 2. `term_command`: Open the Glitch terminal
 3. `logs`: Open the Glitch logs
-4. `logout`: Remove your persistent token
+4. `logout`: Sign out of Glitch
 5. `open_project`: Open a project by name. Must be signed in
 
 ## Getting your Glitch persistent token

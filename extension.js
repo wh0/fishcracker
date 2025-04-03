@@ -12,6 +12,22 @@ async function glitchBoot(/** @type {string} */ persistentToken) {
   return await res.json();
 }
 
+async function glitchAuthAnon() {
+  const res = await fetch('https://api.glitch.com/v1/users/anon', {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(`Glitch users anon response ${res.status} not ok, body ${await res.text()}`);
+  return await res.json();
+}
+
+async function glitchAuthEmailCode(/** @type {string} */ code) {
+  const res = await fetch(`https://api.glitch.com/v1/auth/email/${code}`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(`Glitch auth email response ${res.status} not ok, body ${await res.text()}`);
+  return await res.json();
+}
+
 async function glitchProjectFromId(/** @type {string} */ persistentToken, /** @type {string} */ id) {
   const res = await fetch(`https://api.glitch.com/v1/projects/by/id?id=${id}`, {
     headers: {
@@ -415,26 +431,61 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
     await context.secrets.delete('persistent_token');
   }
 
-  async function fcPromptPersistentToken() {
-    return await vscode.window.showInputBox({
-      prompt: 'Persistent Token',
-      password: true,
+  async function fcFailIfPersistentTokenSaved() {
+    if (await fcGetPersistentTokenFromSecret()) {
+      throw new Error('Persistent token already saved. Run Sign out of Glitch to authenticate again');
+    }
+  }
+
+  const fcAuthItems = [
+    {
+      label: 'Use Sign-in Code',
+      async run() {
+        const codePrompted = await vscode.window.showInputBox({
+          title: 'Sign in to Glitch',
+          prompt: 'Code',
+          ignoreFocusOut: true,
+        });
+        if (!codePrompted) return null;
+        const {user} = await glitchAuthEmailCode(codePrompted);
+        return /** @type {string} */ (user.persistentToken);
+      },
+    },
+    {
+      label: 'Create New Anonymous User',
+      async run() {
+        const user = await glitchAuthAnon();
+        return /** @type {string} */ (user.persistentToken);
+      },
+    },
+    {
+      label: 'Use Persistent Token',
+      async run() {
+        const persistentTokenPrompted = await vscode.window.showInputBox({
+          title: 'Sign in to Glitch',
+          prompt: 'Persistent Token',
+          password: true,
+          ignoreFocusOut: true,
+        });
+        if (!persistentTokenPrompted) return null;
+        return persistentTokenPrompted;
+      },
+    },
+  ];
+
+  async function fcPromptAuth() {
+    const modePrompted = await vscode.window.showQuickPick(fcAuthItems, {
+      title: 'Sign in to Glitch',
       ignoreFocusOut: true,
-    }) || null;
+    });
+    if (!modePrompted) return null;
+    return await modePrompted.run();
   }
 
-  let fcPersistentTokenPrompted = false;
-
-  async function fcMaybePromptPersistentToken() {
-    if (fcPersistentTokenPrompted) return null;
-    fcPersistentTokenPrompted = true;
-    return await fcPromptPersistentToken();
-  }
-
-  async function fcGetPersistentTokenHowever() {
+  async function fcEnsureAuthInteractive() {
     const persistentTokenSecret = await fcGetPersistentTokenFromSecret();
     if (persistentTokenSecret) return persistentTokenSecret;
-    const persistentTokenPrompted = await fcMaybePromptPersistentToken();
+    const persistentTokenPrompted = await fcPromptAuth();
     if (persistentTokenPrompted) {
       await fcSavePersistentToken(persistentTokenPrompted);
       return persistentTokenPrompted;
@@ -442,10 +493,10 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
     return null;
   }
 
-  async function fcGetPersistentToken() {
-    const persistentToken = await fcGetPersistentTokenHowever();
-    if (!persistentToken) throw new Error('Glitch persistent token unset. Run Sign in with Glitch Persistent Token');
-    return persistentToken;
+  async function fcGetPersistentTokenQuiet() {
+    const persistentTokenSecret = await fcGetPersistentTokenFromSecret();
+    if (persistentTokenSecret) return persistentTokenSecret;
+    throw new Error('Glitch persistent token unset. Run Sign in to Glitch');
   }
 
   function fcGetWorkspaceFolders() {
@@ -487,7 +538,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
   }
 
   async function fcPromptNewProjectInfo() {
-    const persistentToken = await fcGetPersistentToken();
+    const persistentToken = await fcGetPersistentTokenQuiet();
     const projectDomainPrompted = await vscode.window.showInputBox({prompt: 'Project Domain'});
     if (!projectDomainPrompted) return null;
     const project = await glitchProjectFromDomain(persistentToken, projectDomainPrompted);
@@ -722,7 +773,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
       fcOtClientsReady[projectId] = (async () => {
         let persistentToken, c;
         try {
-          persistentToken = await fcGetPersistentToken();
+          persistentToken = await fcGetPersistentTokenQuiet();
           if (disposed) throw new Error('Disposed');
           c = otClientCreate(persistentToken, projectId);
         } catch (e) {
@@ -834,7 +885,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
         (async () => {
           let persistentToken, ws;
           try {
-            persistentToken = await fcGetPersistentToken();
+            persistentToken = await fcGetPersistentTokenQuiet();
             if (disposed) throw new Error('Disposed');
             ws = glitchLogs(persistentToken, projectId);
           } catch (e) {
@@ -905,7 +956,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
     }
     let terminalToken;
     try {
-      const persistentToken = await fcGetPersistentToken();
+      const persistentToken = await fcGetPersistentTokenQuiet();
       terminalToken = await glitchTerminalToken(persistentToken, projectId);
     } catch (e) {
       cleanup();
@@ -1112,8 +1163,9 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
     // no custom `copy` implementation
   }, {isCaseSensitive: true}));
 
-  context.subscriptions.push(vscode.commands.registerCommand('wh0.fishcracker.auth.persistent_token', async () => {
-    const persistentTokenPrompted = await fcPromptPersistentToken();
+  context.subscriptions.push(vscode.commands.registerCommand('wh0.fishcracker.auth', async () => {
+    await fcFailIfPersistentTokenSaved();
+    const persistentTokenPrompted = await fcPromptAuth();
     if (persistentTokenPrompted) {
       await fcSavePersistentToken(persistentTokenPrompted);
     }
@@ -1124,6 +1176,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('wh0.fishcracker.open_project', async () => {
+    if (!await fcEnsureAuthInteractive()) return;
     const projectInfoPrompted = await fcPromptNewProjectInfo();
     if (!projectInfoPrompted) return;
     let end = 0;
@@ -1138,6 +1191,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('wh0.fishcracker.request_join', async () => {
+    if (!await fcEnsureAuthInteractive()) return;
     const projectInfo = await fcGetProjectInfoHowever();
     if (!projectInfo) return;
     const persistentToken = await fcGetPersistentToken();
@@ -1170,6 +1224,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
   const /** @type {{[projectId: string]: vscode.LogOutputChannel}} */ fcLogOutputChannels = {};
 
   context.subscriptions.push(vscode.commands.registerCommand('wh0.fishcracker.logs', async () => {
+    if (!await fcEnsureAuthInteractive()) return;
     const projectInfo = await fcGetProjectInfoHowever();
     if (!projectInfo) return;
     if (!(projectInfo.id in fcLogOutputChannels)) {
@@ -1181,6 +1236,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('wh0.fishcracker.term_command', async () => {
+    if (!await fcEnsureAuthInteractive()) return;
     const projectInfo = await fcGetProjectInfoHowever();
     if (!projectInfo) return;
     const terminal = vscode.window.createTerminal({
@@ -1193,6 +1249,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
   context.subscriptions.push(vscode.window.registerTerminalProfileProvider('wh0.fishcracker.term', {
     async provideTerminalProfile(token) {
       console.log('tpp provide terminal profile'); // %%%
+      if (!await fcEnsureAuthInteractive()) return;
       const projectInfo = await fcGetProjectInfoHowever();
       if (!projectInfo) return null;
       return new vscode.TerminalProfile({

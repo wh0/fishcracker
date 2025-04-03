@@ -11,12 +11,12 @@
   "contributes": {
     "commands": [
       {
-        "command": "wh0.fishcracker.auth.persistent_token",
-        "title": "Sign in with Glitch Persistent Token"
+        "command": "wh0.fishcracker.auth",
+        "title": "Sign in to Glitch"
       },
       {
         "command": "wh0.fishcracker.logout",
-        "title": "Delete Saved Glitch Persistent Token"
+        "title": "Sign out of Glitch"
       },
       {
         "command": "wh0.fishcracker.open_project",
