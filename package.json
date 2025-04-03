@@ -11,10 +11,6 @@
   "contributes": {
     "commands": [
       {
-        "command": "wh0.fishcracker.test",
-        "title": "wh0.fishcracker Test"
-      },
-      {
         "command": "wh0.fishcracker.auth.persistent_token",
         "title": "Sign in with Glitch Persistent Token"
       },

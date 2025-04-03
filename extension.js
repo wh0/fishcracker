@@ -1112,10 +1112,6 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
     // no custom `copy` implementation
   }, {isCaseSensitive: true}));
 
-  context.subscriptions.push(vscode.commands.registerCommand('wh0.fishcracker.test', async () => {
-    // %%%
-  }));
-
   context.subscriptions.push(vscode.commands.registerCommand('wh0.fishcracker.auth.persistent_token', async () => {
     const persistentTokenPrompted = await fcPromptPersistentToken();
     if (persistentTokenPrompted) {
