@@ -893,81 +893,79 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
     return doc;
   }
 
-  const /** @type {{[projectId: string]: vscode.Disposable}} */ fcLogsDisposables = {};
+  /**
+   * @typedef {{
+   *   disposable: vscode.Disposable,
+   * }} FcLogsRecord
+   */
+
+  const /** @type {{[projectId: string]: FcLogsRecord}} */ fcLogsRecords = {};
   context.subscriptions.push(new vscode.Disposable(() => {
-    for (const projectId in fcLogsDisposables) {
-      fcLogsDisposables[projectId].dispose();
+    for (const projectId in fcLogsRecords) {
+      fcLogsRecords[projectId].disposable.dispose();
     }
   }));
 
-  const /** @type {{[projectId: string]: true}} */ fcLogsStreaming = {};
-
   function fcStreamLogs(/** @type {string} */ projectId, /** @type {vscode.LogOutputChannel} */ logOutputChannel) {
-    if (!(projectId in fcLogsStreaming)) {
+    if (!(projectId in fcLogsRecords)) {
       let disposed = false;
       let /** @type {import('ws').WebSocket | null} */ wsHandle = null;
-      const disposable = new vscode.Disposable(() => {
-        disposed = true;
-        if (wsHandle) {
-          wsHandle.close();
-        }
-      });
-      fcLogsDisposables[projectId] = disposable;
-      function cleanup() {
-        delete fcLogsDisposables[projectId];
-        delete fcLogsStreaming[projectId];
-        disposable.dispose();
-      }
-      function connect() {
-        (async () => {
-          let persistentToken, ws;
-          try {
-            persistentToken = await fcGetPersistentTokenQuiet();
-            if (disposed) throw new Error('Disposed');
-            ws = glitchLogs(persistentToken, projectId);
-          } catch (e) {
-            console.error(e);
-            logOutputChannel.error('error connecting to logs', e);
-            cleanup();
-            return;
+      const /** @type {FcLogsRecord} */ record = {
+        disposable: new vscode.Disposable(() => {
+          disposed = true;
+          if (wsHandle) {
+            wsHandle.close();
           }
-          let /** @type {NodeJS.Timeout | null} */ keepAliveInterval = null;
-          ws.onopen = (e) => {
-            console.log('logs open', e); // %%%
-            keepAliveInterval = setInterval(() => {
-              ws.send('keep alive');
-            }, 30000);
-          };
-          ws.onclose = (e) => {
-            console.log('logs close', e.code, e.reason); // %%%
-            logOutputChannel.error('logs close', e.code, e.reason);
-            if (keepAliveInterval) {
-              clearInterval(keepAliveInterval);
-              keepAliveInterval = null;
-            }
-            wsHandle = null;
-            // %%% reconnect if not disposed
-            cleanup();
-          };
-          ws.onerror = (e) => {
-            console.error('logs error', e); // %%%
-            logOutputChannel.error('logs error', e);
-          };
-          ws.onmessage = (e) => {
-            const msg = JSON.parse(/** @type {string} */ (e.data));
-            if (msg.process !== 'signal') {
-              if (msg.stream === 'stderr') {
-                logOutputChannel.error(msg.text);
-              } else {
-                logOutputChannel.info(msg.text);
-              }
-            }
-          };
-          wsHandle = ws;
-        })();
+        }),
+      };
+      fcLogsRecords[projectId] = record;
+      function cleanup() {
+        delete fcLogsRecords[projectId];
+        record.disposable.dispose();
+        // %%% reconnect
       }
-      connect();
-      fcLogsStreaming[projectId] = true;
+      (async () => {
+        let persistentToken, ws;
+        try {
+          persistentToken = await fcGetPersistentTokenQuiet();
+          if (disposed) throw new Error('Disposed');
+          ws = glitchLogs(persistentToken, projectId);
+        } catch (e) {
+          console.error(e);
+          cleanup();
+          return;
+        }
+        let /** @type {NodeJS.Timeout | null} */ keepAliveInterval = null;
+        ws.onopen = (e) => {
+          console.log('logs open', projectId, e); // %%%
+          keepAliveInterval = setInterval(() => {
+            ws.send('keep alive');
+          }, 30000);
+        };
+        ws.onclose = (e) => {
+          console.log('logs close', projectId, e.code, e.reason); // %%%
+          if (keepAliveInterval) {
+            clearInterval(keepAliveInterval);
+            keepAliveInterval = null;
+          }
+          wsHandle = null;
+          cleanup();
+        };
+        ws.onerror = (e) => {
+          console.error('logs error', projectId, e); // %%%
+        };
+        ws.onmessage = (e) => {
+          const msg = JSON.parse(/** @type {string} */ (e.data));
+          if (msg.process !== 'signal') {
+            if (msg.stream === 'stderr') {
+              logOutputChannel.error(msg.text);
+            } else {
+              logOutputChannel.info(msg.text);
+            }
+          }
+        };
+        wsHandle = ws;
+      })();
     }
   }
 
@@ -1242,11 +1240,13 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
     const projectInfo = await fcGetProjectInfoHowever();
     if (!projectInfo) return;
     if (!(projectInfo.id in fcLogOutputChannels)) {
-      const createdLogOutputChannel = vscode.window.createOutputChannel(`Glitch Logs (${projectInfo.name})`, {log: true});
-      fcLogOutputChannels[projectInfo.id] = createdLogOutputChannel;
-      fcStreamLogs(projectInfo.id, createdLogOutputChannel);
+      const logOutputChannel = vscode.window.createOutputChannel(`Glitch Logs (${projectInfo.name})`, {log: true});
+      fcLogOutputChannels[projectInfo.id] = logOutputChannel;
     }
-    fcLogOutputChannels[projectInfo.id].show();
+    await fcOtGetReadyClient(projectInfo.id);
+    const logOutputChannel = fcLogOutputChannels[projectInfo.id];
+    fcStreamLogs(projectInfo.id, logOutputChannel);
+    logOutputChannel.show();
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('wh0.fishcracker.term_command', async () => {
