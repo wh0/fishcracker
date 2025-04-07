@@ -526,10 +526,11 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
     const activeTextEditor = vscode.window.activeTextEditor;
     if (!activeTextEditor) return null;
     if (activeTextEditor.document.uri.scheme !== 'fishcracker') return null;
-    const projectId = activeTextEditor.document.uri.scheme;
+    const projectId = activeTextEditor.document.uri.authority;
     const workspaceFolder = vscode.workspace.getWorkspaceFolder(activeTextEditor.document.uri);
     if (workspaceFolder) return fcProjectInfoFromWorkspaceFolder(workspaceFolder);
-    const project = await glitchProjectFromId(projectId);
+    const persistentToken = await fcGetPersistentTokenQuiet();
+    const project = await glitchProjectFromId(persistentToken, projectId);
     return fcProjectInfoFromProject(project);
   }
 
