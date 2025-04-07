@@ -161,7 +161,7 @@ function otNewId() {
 /**
  * @typedef {{
  *   projectId: string,
- *   ws: import('ws').WebSocket,
+ *   ws: import('ws'),
  *   clientId: string | null,
  *   version: number | null,
  *   docs: {[docId: string]: OtDoc},
@@ -922,7 +922,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
   function fcStreamLogs(/** @type {string} */ projectId, /** @type {vscode.LogOutputChannel} */ logOutputChannel) {
     if (!(projectId in fcLogsRecords)) {
       let disposed = false;
-      let /** @type {import('ws').WebSocket | null} */ wsHandle = null;
+      let /** @type {import('ws') | null} */ wsHandle = null;
       const /** @type {FcLogsRecord} */ record = {
         disposable: new vscode.Disposable(() => {
           disposed = true;
