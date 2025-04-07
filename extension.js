@@ -744,6 +744,33 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
     }
   }
 
+  async function fcSendRequestJoin(/** @type {OtClient} */ c) {
+    const persistentToken = await fcGetPersistentTokenQuiet();
+    const {user} = await glitchBoot(persistentToken);
+    const fallbackName = `fc-${(0x10000 + Math.floor(Math.random() * 0x10000)).toString(16).slice(1)}`;
+    const nagUser = {
+      avatarUrl: user.avatarUrl || 'https://fishcracker.glitch.me/join.png',
+      avatarThumbnailUrl: user.avatarThumbnailUrl,
+      awaitingInvite: true,
+      id: user.id,
+      name: user.name || fallbackName,
+      login: user.login,
+      color: user.color,
+      projectPermission: {
+        userId: user.id,
+        projectId: c.projectId,
+        accessLevel: 0,
+      },
+    };
+    otClientSend(c, {
+      type: 'broadcast',
+      payload: {
+        user: nagUser,
+      },
+    });
+    vscode.window.showInformationMessage(`Requesting to join as ${nagUser.name}`);
+  }
+
   const /** @type {vscode.EventEmitter<vscode.FileChangeEvent[]>} */ didChangeFileEmitter = new vscode.EventEmitter();
   context.subscriptions.push(didChangeFileEmitter);
 
@@ -1196,31 +1223,8 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
     if (!await fcEnsureAuthInteractive()) return;
     const projectInfo = await fcGetProjectInfoHowever();
     if (!projectInfo) return;
-    const persistentToken = await fcGetPersistentToken();
-    const {user} = await glitchBoot(persistentToken);
     const c = await fcGetReadyOtClient(projectInfo.id);
-    const fallbackName = `fc-${(0x10000 + Math.floor(Math.random() * 0x10000)).toString(16).slice(1)}`;
-    const nagUser = {
-      avatarUrl: user.avatarUrl || 'https://fishcracker.glitch.me/join.png',
-      avatarThumbnailUrl: user.avatarThumbnailUrl,
-      awaitingInvite: true,
-      id: user.id,
-      name: user.name || fallbackName,
-      login: user.login,
-      color: user.color,
-      projectPermission: {
-        userId: user.id,
-        projectId: projectInfo.id,
-        accessLevel: 0,
-      },
-    };
-    otClientSend(c, {
-      type: 'broadcast',
-      payload: {
-        user: nagUser,
-      },
-    });
-    vscode.window.showInformationMessage(`Requesting to join as ${nagUser.name}`);
+    await fcSendRequestJoin(c);
   }));
 
   const /** @type {{[projectId: string]: vscode.LogOutputChannel}} */ fcLogOutputChannels = {};
