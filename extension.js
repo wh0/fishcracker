@@ -160,6 +160,7 @@ function otNewId() {
 
 /**
  * @typedef {{
+ *   projectId: string,
  *   ws: import('ws').WebSocket,
  *   clientId: string | null,
  *   version: number | null,
@@ -269,8 +270,9 @@ function otClientApplyOpList(/** @type {OtClient} */ c, /** @type {OtOpList} */ 
 }
 
 function otClientCreate(/** @type {string} */ persistentToken, /** @type {string} */ projectId) {
-  console.log('ot connecting'); // %%%
+  console.log('ot connecting', projectId); // %%%
   const /** @type {OtClient} */ c = {
+    projectId,
     ws: glitchOt(persistentToken, projectId),
     clientId: null,
     version: null,
@@ -292,11 +294,11 @@ function otClientCreate(/** @type {string} */ persistentToken, /** @type {string
     openRequested = {resolve, reject};
   });
   c.ws.onopen = (e) => {
-    console.log('ot open'); // %%%
+    console.log('ot open', c.projectId); // %%%
     openRequested.resolve();
   };
   c.ws.onclose = (e) => {
-    console.log('ot close', e.code, e.reason); // %%%
+    console.log('ot close', c.projectId, e.code, e.reason); // %%%
     if (c.onclose) {
       c.onclose();
     }
@@ -313,11 +315,11 @@ function otClientCreate(/** @type {string} */ persistentToken, /** @type {string
     }
   };
   c.ws.onerror = (e) => {
-    console.error('ot error', e); // %%%
+    console.error('ot error', c.projectId, e); // %%%
   };
   c.ws.onmessage = (e) => {
     const msg = JSON.parse(/** @type {string} */ (e.data));
-    console.log('ot <', msg); // %%%
+    console.log('ot <', c.projectId, msg); // %%%
     switch (msg.type) {
       case 'master-state': {
         c.version = msg.state.version;
@@ -368,7 +370,7 @@ function otClientCreate(/** @type {string} */ persistentToken, /** @type {string
 }
 
 function otClientSend(/** @type {OtClient} */ c, /** @type {any} */ msg) {
-  console.log('ot >', msg); // %%%
+  console.log('ot >', c.projectId, msg); // %%%
   c.ws.send(JSON.stringify(msg));
 }
 
