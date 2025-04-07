@@ -771,6 +771,8 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
     vscode.window.showInformationMessage(`Requesting to join as ${nagUser.name}`);
   }
 
+  const /** @type {{[projectId: string]: Set<{path: string}>}} */ fcFsWatches = {};
+
   const /** @type {vscode.EventEmitter<vscode.FileChangeEvent[]>} */ fcFsDidChangeFileEmitter = new vscode.EventEmitter();
   context.subscriptions.push(fcFsDidChangeFileEmitter);
 
@@ -845,6 +847,16 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
         try {
           await c.openPromised;
           await otClientRequestMaster(c);
+          if (projectId in fcFsWatches) {
+            await Promise.all(Array.from(fcFsWatches[projectId]).map(async (watch) => {
+              try {
+                const names = fcNamesFromPath(watch.path);
+                await fcResolveDoc(c, names);
+              } catch (e) {
+                console.error(e);
+              }
+            }));
+          }
           return c;
         } catch (e) {
           c.ws.close();
@@ -1090,13 +1102,26 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
       fcRequireSaneAuthority(uri);
       const projectId = uri.authority;
       const names = fcNamesFromPath(uri.path);
+      const watch = {path: uri.path};
+      if (!(projectId in fcFsWatches)) {
+        fcFsWatches[projectId] = new Set();
+      }
+      fcFsWatches[projectId].add(watch);
+      const cPromised = fcOtGetReadyClient(projectId);
       (async () => {
-        const c = await fcOtGetReadyClient(projectId);
-        await fcResolveDoc(c, names);
-        // kind of don't want to honor recursive option
+        try {
+          const c = await cPromised;
+          await fcResolveDoc(c, names);
+        } catch (e) {
+          console.error(e);
+        }
       })();
       return new vscode.Disposable(() => {
         console.log('fs watch disposed', uri.toString(), options); // %%%
+        fcFsWatches[projectId].delete(watch);
+        if (fcFsWatches[projectId].size === 0) {
+          delete fcFsWatches[projectId];
+        }
       });
     },
     async stat(uri) {
