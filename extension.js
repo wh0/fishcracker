@@ -969,25 +969,38 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
     }
   }
 
-  const /** @type {Set<vscode.Disposable>} */ fcTerminalDisposables = new Set();
+  let fcNextTerminalId = 0;
+
+  /**
+   * @typedef {{
+   *   disposable: vscode.Disposable,
+   * }} FcTerminalRecord
+   */
+
+  const /** @type {{[terminalId: number]: FcTerminalRecord}} */ fcTerminalRecords = {};
   context.subscriptions.push(new vscode.Disposable(() => {
-    for (const disposable of fcTerminalDisposables) {
-      disposable.dispose();
+    for (const terminalId in fcTerminalRecords) {
+      fcTerminalRecords[terminalId].disposable.dispose();
     }
   }));
 
   async function fcCreatePseudoterminal(/** @type {string} */ projectId) {
+    const terminalId = fcNextTerminalId++;
+    console.log('pty create', terminalId, projectId); // %%%
     let disposed = false;
     let /** @type {import('socket.io-client').Socket | null} */ socketHandle = null;
-    const disposable = new vscode.Disposable(() => {
-      disposed = true;
-      if (socketHandle) {
-        socketHandle.close();
-      }
-    });
+    const record = {
+      disposable: new vscode.Disposable(() => {
+        disposed = true;
+        if (socketHandle) {
+          socketHandle.close();
+        }
+      }),
+    };
+    fcTerminalRecords[terminalId] = record;
     function cleanup() {
-      fcTerminalDisposables.delete(disposable);
-      disposable.dispose();
+      delete fcTerminalRecords[terminalId];
+      record.disposable.dispose();
     }
     let terminalToken;
     try {
@@ -1003,7 +1016,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
       onDidWrite: didWriteEmitter.event,
       onDidClose: didCloseEmitter.event,
       open(initialDimensions) {
-        console.log('pty open', initialDimensions); // %%%
+        console.log('pty open', terminalId, initialDimensions); // %%%
         let socket;
         try {
           if (disposed) throw new Error('Disposed');
@@ -1013,22 +1026,22 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
           throw e;
         }
         socket.once('connect', () => {
-          console.log('pty socket connect'); // %%%
+          console.log('pty socket connect', terminalId); // %%%
         });
         socket.once('disconnect', (/** @type {string} */ reason) => {
-          console.log('pty socket disconnect', reason); // %%%
+          console.log('pty socket disconnect', terminalId, reason); // %%%
           socketHandle = null;
           cleanup();
           didCloseEmitter.fire();
         });
         socket.on('error', (/** @type {any} */ e) => {
-          console.error('pty socket error', e); // %%%
+          console.error('pty socket error', terminalId, e); // %%%
         });
         socket.once('login', () => {
-          console.log('pty socket login'); // %%%
+          console.log('pty socket login', terminalId); // %%%
         });
         socket.once('logout', () => {
-          console.log('pty socket logout'); // %%%
+          console.log('pty socket logout', terminalId); // %%%
           socket.close();
         });
         socket.on('data', (/** @type {string} */ data) => {
@@ -1048,7 +1061,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
         }
       },
       close() {
-        console.log('pty close'); // %%%
+        console.log('pty close', terminalId); // %%%
         if (socketHandle) {
           socketHandle.close();
         }
@@ -1059,7 +1072,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
         }
       },
       setDimensions(dimensions) {
-        console.log('pty set dimensions', dimensions); // %%%
+        console.log('pty set dimensions', terminalId, dimensions); // %%%
         if (socketHandle) {
           socketHandle.emit('resize', {
             cols: dimensions.columns,
