@@ -771,8 +771,8 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
     vscode.window.showInformationMessage(`Requesting to join as ${nagUser.name}`);
   }
 
-  const /** @type {vscode.EventEmitter<vscode.FileChangeEvent[]>} */ didChangeFileEmitter = new vscode.EventEmitter();
-  context.subscriptions.push(didChangeFileEmitter);
+  const /** @type {vscode.EventEmitter<vscode.FileChangeEvent[]>} */ fcFsDidChangeFileEmitter = new vscode.EventEmitter();
+  context.subscriptions.push(fcFsDidChangeFileEmitter);
 
   /**
    * @typedef {{
@@ -825,7 +825,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
           switch (op.type) {
             case 'unlink':
             case 'rename':
-              didChangeFileEmitter.fire([{uri: fcUriFromDocId(projectId, c, op.docId), type: vscode.FileChangeType.Deleted}]);
+              fcFsDidChangeFileEmitter.fire([{uri: fcUriFromDocId(projectId, c, op.docId), type: vscode.FileChangeType.Deleted}]);
               break;
           }
         };
@@ -833,11 +833,11 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
           switch (op.type) {
             case 'add':
             case 'rename':
-              didChangeFileEmitter.fire([{uri: fcUriFromDocId(projectId, c, op.docId), type: vscode.FileChangeType.Created}]);
+              fcFsDidChangeFileEmitter.fire([{uri: fcUriFromDocId(projectId, c, op.docId), type: vscode.FileChangeType.Created}]);
               break;
             case 'insert':
             case 'remove':
-              didChangeFileEmitter.fire([{uri: fcUriFromDocId(projectId, c, op.docId), type: vscode.FileChangeType.Changed}]);
+              fcFsDidChangeFileEmitter.fire([{uri: fcUriFromDocId(projectId, c, op.docId), type: vscode.FileChangeType.Changed}]);
               break;
           }
         };
@@ -1084,7 +1084,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
   }
 
   context.subscriptions.push(vscode.workspace.registerFileSystemProvider('fishcracker', {
-    onDidChangeFile: didChangeFileEmitter.event,
+    onDidChangeFile: fcFsDidChangeFileEmitter.event,
     watch(uri, options) {
       console.log('fs watch', uri.toString(), options); // %%%
       fcRequireSaneAuthority(uri);
