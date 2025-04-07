@@ -774,32 +774,40 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
   const /** @type {vscode.EventEmitter<vscode.FileChangeEvent[]>} */ didChangeFileEmitter = new vscode.EventEmitter();
   context.subscriptions.push(didChangeFileEmitter);
 
-  const /** @type {{[projectId: string]: vscode.Disposable}} */ fcOtDisposables = {};
+  /**
+   * @typedef {{
+   *   disposable: vscode.Disposable,
+   *   cReadyPromised: Promise<OtClient>,
+   * }} FcOtRecord
+   */
+
+  const /** @type {{[projectId: string]: FcOtRecord}} */ fcOtRecords = {};
   context.subscriptions.push(new vscode.Disposable(() => {
-    for (const projectId in fcOtDisposables) {
-      fcOtDisposables[projectId].dispose();
+    for (const projectId in fcOtRecords) {
+      fcOtRecords[projectId].disposable.dispose();
     }
   }));
 
-  const /** @type {{[projectId: string]: Promise<OtClient>}} */ fcOtClientsReady = {};
-
-  function fcGetReadyOtClient(/** @type {string} */ projectId) {
-    if (!(projectId in fcOtClientsReady)) {
+  function fcOtGetReadyClient(/** @type {string} */ projectId) {
+    if (!(projectId in fcOtRecords)) {
       let disposed = false;
       let /** @type {OtClient | null} */ cHandle = null;
-      const disposable = new vscode.Disposable(() => {
-        disposed = true;
-        if (cHandle) {
-          cHandle.ws.close();
-        }
-      });
-      fcOtDisposables[projectId] = disposable;
+      const /** @type {FcOtRecord} */ record = {
+        disposable: new vscode.Disposable(() => {
+          disposed = true;
+          if (cHandle) {
+            cHandle.ws.close();
+          }
+        }),
+        cReadyPromised: /** @type {never} */ (null),
+      };
+      fcOtRecords[projectId] = record;
       function cleanup() {
-        delete fcOtDisposables[projectId];
-        delete fcOtClientsReady[projectId];
-        disposable.dispose();
+        delete fcOtRecords[projectId];
+        record.disposable.dispose();
+        // %%% reconnect
       }
-      fcOtClientsReady[projectId] = (async () => {
+      record.cReadyPromised = (async () => {
         let persistentToken, c;
         try {
           persistentToken = await fcGetPersistentTokenQuiet();
@@ -844,7 +852,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
         }
       })();
     }
-    return fcOtClientsReady[projectId];
+    return fcOtRecords[projectId].cReadyPromised;
   }
 
   async function fcRequireDoc(/** @type {OtClient} */ c, /** @type {string} */ docId) {
@@ -1072,7 +1080,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
       const projectId = uri.authority;
       const names = fcNamesFromPath(uri.path);
       (async () => {
-        const c = await fcGetReadyOtClient(projectId);
+        const c = await fcOtGetReadyClient(projectId);
         await fcResolveDoc(c, names);
         // kind of don't want to honor recursive option
       })();
@@ -1085,7 +1093,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
       fcRequireSaneAuthority(uri);
       const projectId = uri.authority;
       const names = fcNamesFromPath(uri.path);
-      const c = await fcGetReadyOtClient(projectId);
+      const c = await fcOtGetReadyClient(projectId);
       const doc = await fcResolveDoc(c, names);
       const fileType = fcFileTypeFromDocType(doc.docType);
       let size = 0;
@@ -1104,7 +1112,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
       fcRequireSaneAuthority(uri);
       const projectId = uri.authority;
       const names = fcNamesFromPath(uri.path);
-      const c = await fcGetReadyOtClient(projectId);
+      const c = await fcOtGetReadyClient(projectId);
       const doc = await fcResolveDoc(c, names);
       fcRequireDir(doc);
       const /** @type {[string, vscode.FileType][]} */ entries = [];
@@ -1122,7 +1130,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
       const parentNames = fcNamesFromPath(uri.path);
       if (parentNames.length < 1) throw vscode.FileSystemError.FileExists('.');
       const name = /** @type {string} */ (parentNames.pop());
-      const c = await fcGetReadyOtClient(projectId);
+      const c = await fcOtGetReadyClient(projectId);
       const parentDoc = await fcResolveDoc(c, parentNames);
       fcRequireDir(parentDoc);
       fcRequireNotChild(parentDoc, name);
@@ -1133,7 +1141,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
       fcRequireSaneAuthority(uri);
       const projectId = uri.authority;
       const names = fcNamesFromPath(uri.path);
-      const c = await fcGetReadyOtClient(projectId);
+      const c = await fcOtGetReadyClient(projectId);
       const doc = await fcResolveDoc(c, names);
       fcRequireFile(doc);
       return fcFileBytes(doc);
@@ -1146,7 +1154,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
       if (parentNames.length < 1) throw vscode.FileSystemError.FileIsADirectory('.');
       const name = /** @type {string} */ (parentNames.pop());
       const contentStr = new TextDecoder('utf-8', {fatal: true}).decode(content);
-      const c = await fcGetReadyOtClient(projectId);
+      const c = await fcOtGetReadyClient(projectId);
       const parentDoc = await fcResolveDoc(c, parentNames);
       fcRequireDir(parentDoc);
       if (name in parentDoc.children) {
@@ -1168,7 +1176,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
       fcRequireSaneAuthority(uri);
       const projectId = uri.authority;
       const names = fcNamesFromPath(uri.path);
-      const c = await fcGetReadyOtClient(projectId);
+      const c = await fcOtGetReadyClient(projectId);
       const doc = await fcResolveDoc(c, names);
       await fcSendUnlink(c, doc);
     },
@@ -1182,7 +1190,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
       const newParentNames = fcNamesFromPath(newUri.path);
       if (newParentNames.length < 1) throw vscode.FileSystemError.FileExists('.');
       const newName = /** @type {string} */ (newParentNames.pop());
-      const c = await fcGetReadyOtClient(projectId);
+      const c = await fcOtGetReadyClient(projectId);
       const doc = await fcResolveDoc(c, names);
       const newParentDoc = await fcResolveDoc(c, newParentNames);
       fcRequireDir(newParentDoc);
@@ -1223,7 +1231,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
     if (!await fcEnsureAuthInteractive()) return;
     const projectInfo = await fcGetProjectInfoHowever();
     if (!projectInfo) return;
-    const c = await fcGetReadyOtClient(projectInfo.id);
+    const c = await fcOtGetReadyClient(projectInfo.id);
     await fcSendRequestJoin(c);
   }));
 
