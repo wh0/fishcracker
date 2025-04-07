@@ -1291,6 +1291,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
     if (!await fcEnsureAuthInteractive()) return;
     const projectInfo = await fcGetProjectInfoHowever();
     if (!projectInfo) return;
+    await fcOtGetReadyClient(projectInfo.id);
     const terminal = vscode.window.createTerminal({
       name: `Glitch Terminal (${projectInfo.name})`,
       pty: await fcCreatePseudoterminal(projectInfo.id),
@@ -1304,6 +1305,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
       if (!await fcEnsureAuthInteractive()) return;
       const projectInfo = await fcGetProjectInfoHowever();
       if (!projectInfo) return null;
+      await fcOtGetReadyClient(projectInfo.id);
       return new vscode.TerminalProfile({
         name: `Glitch Terminal (${projectInfo.name})`,
         pty: await fcCreatePseudoterminal(projectInfo.id),
