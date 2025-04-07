@@ -5,9 +5,9 @@
     "module": "commonjs",
     "target": "es6"
   },
-  "exclude": [
-    "node_modules",
-    "greeter/static/build",
-    "greeter/static/devextension"
+  "include": [
+    "extension.js",
+    "sideboard.js",
+    "browser/*"
   ]
 }
