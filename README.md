@@ -9,6 +9,7 @@
 3. `logs`: Open the Glitch logs
 4. `logout`: Sign out of Glitch
 5. `open_project`: Open a project by name. Must be signed in
+6. `close`: Close a Glitch connection
 
 ## Getting your Glitch persistent token
 

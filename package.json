@@ -33,6 +33,10 @@
       {
         "command": "wh0.fishcracker.term_command",
         "title": "Open Glitch Terminal"
+      },
+      {
+        "command": "wh0.fishcracker.close",
+        "title": "Close Glitch Connection"
       }
     ],
     "terminal": {

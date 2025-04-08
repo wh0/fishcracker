@@ -1313,4 +1313,49 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
       });
     },
   }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('wh0.fishcracker.close', async () => {
+    function projectDisplayFromProjectId(/** @type {string} */ projectId) {
+      let projectDisplay = `Project ID ${projectId}`;
+      const uri = vscode.Uri.from({scheme: 'fishcracker', authority: projectId});
+      const workspaceFolder = vscode.workspace.getWorkspaceFolder(uri);
+      if (workspaceFolder) {
+        projectDisplay = workspaceFolder.name;
+      }
+      return projectDisplay;
+    }
+    const /** @type {{label: string, run: () => void}[]} */ items = [];
+    for (const projectId in fcOtRecords) {
+      const record = fcOtRecords[projectId];
+      items.push({
+        label: `OT ${projectDisplayFromProjectId(projectId)}`,
+        run() {
+          record.disposable.dispose();
+        },
+      });
+    }
+    for (const projectId in fcLogsRecords) {
+      const record = fcLogsRecords[projectId];
+      items.push({
+        label: `Logs ${projectDisplayFromProjectId(projectId)}`,
+        run() {
+          record.disposable.dispose();
+        },
+      });
+    }
+    for (const terminalId in fcTerminalRecords) {
+      const record = fcTerminalRecords[terminalId];
+      items.push({
+        label: `Terminal ID ${terminalId}`,
+        run() {
+          record.disposable.dispose();
+        },
+      });
+    }
+    const itemsPrompted = await vscode.window.showQuickPick(items, {canPickMany: true});
+    if (!itemsPrompted) return;
+    itemsPrompted.forEach((item) => {
+      item.run();
+    });
+  }));
 };
