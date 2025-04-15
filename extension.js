@@ -52,6 +52,28 @@ async function glitchProjectFromDomain(/** @type {string} */ persistentToken, /*
   return body[domain];
 }
 
+async function glitchAllProjects(/** @type {string} */ persistentToken) {
+  const { user } = await glitchBoot(persistentToken);
+  let hasMoreProjectsToFetch = true;
+  let pageParam = "";
+  let projects = [];
+  while (hasMoreProjectsToFetch) {
+    const res = await fetch(`https://api.glitch.com/v1/users/${user.id}/projects?limit=100&orderKey=createdAt&orderDirection=DESC${pageParam}`, {
+      headers: {
+        'Authorization': persistentToken,
+      },
+    });
+    if (!res.ok) {
+      throw new Error(`Glitch projects recent response ${res.status} not ok, body ${await res.text()}`);
+    }
+    const body = await res.json();
+    projects.push(...body.items);
+    hasMoreProjectsToFetch = body.hasMore;
+    pageParam = `&lastOrderValue=${encodeURIComponent(body.lastOrderValue)}`
+  }
+  return projects;
+}
+
 function glitchOt(/** @type {string} */ persistentToken, /** @type {string} */ projectId) {
   const WebSocket = require('ws');
   return new WebSocket(`wss://api.glitch.com/${projectId}/ot?authorization=${persistentToken}`);
@@ -542,9 +564,24 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
 
   async function fcPromptNewProjectInfo() {
     const persistentToken = await fcGetPersistentTokenQuiet();
-    const projectDomainPrompted = await vscode.window.showInputBox({prompt: 'Project Domain'});
+    const userProjects = await glitchAllProjects(persistentToken);
+    const projectDomainPrompted = await vscode.window.showQuickPick(
+      [
+        ...userProjects.map((project) => ({
+          label: project.domain,
+          detail: project.description,
+        })),
+      ],
+      {
+        title: "Enter project domain",
+        ignoreFocusOut: true,
+      }
+    );
     if (!projectDomainPrompted) return null;
-    const project = await glitchProjectFromDomain(persistentToken, projectDomainPrompted);
+    const project = await glitchProjectFromDomain(
+      persistentToken,
+      projectDomainPrompted.label
+    );
     return fcProjectInfoFromProject(project);
   }
 
