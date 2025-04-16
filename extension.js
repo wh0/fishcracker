@@ -542,7 +542,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
 
   async function fcPromptNewProjectInfo() {
     const persistentToken = await fcGetPersistentTokenQuiet();
-    const projectDomainPrompted = await vscode.window.showInputBox({prompt: 'Project Domain'});
+    const projectDomainPrompted = await vscode.window.showInputBox({prompt: 'Project Name'});
     if (!projectDomainPrompted) return null;
     const project = await glitchProjectFromDomain(persistentToken, projectDomainPrompted);
     return fcProjectInfoFromProject(project);
