@@ -1305,19 +1305,36 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
   }));
 
   const /** @type {{[projectId: string]: vscode.LogOutputChannel}} */ fcLogOutputChannels = {};
+  const /** @type {{[outputChannelId: string]: string}} */ fcProjectIdsByLogOutputChannelId = {};
 
   context.subscriptions.push(vscode.commands.registerCommand('wh0.fishcracker.logs', async () => {
     if (!await fcEnsureAuthInteractive()) return;
     const projectInfo = await fcGetProjectInfoHowever();
     if (!projectInfo) return;
     if (!(projectInfo.id in fcLogOutputChannels)) {
-      const logOutputChannel = vscode.window.createOutputChannel(`Glitch Logs (${projectInfo.name})`, {log: true});
+      const name = `Glitch Logs (${projectInfo.name})`;
+      const id = `${context.extension.id}.${name}`;
+      if (id in fcProjectIdsByLogOutputChannelId) throw new Error(`Output channel ID ${id} already used`);
+      const logOutputChannel = vscode.window.createOutputChannel(name, {log: true});
       fcLogOutputChannels[projectInfo.id] = logOutputChannel;
+      fcProjectIdsByLogOutputChannelId[id] = projectInfo.id;
     }
     await fcOtGetReadyClient(projectInfo.id);
     const logOutputChannel = fcLogOutputChannels[projectInfo.id];
     fcStreamLogs(projectInfo.id, logOutputChannel);
     logOutputChannel.show();
+  }));
+
+  context.subscriptions.push(vscode.commands.registerCommand('wh0.fishcracker.close_logs', () => {
+    const outputEditor = vscode.window.visibleTextEditors.find((textEditor) => textEditor.document.uri.scheme === 'output');
+    if (!outputEditor) return;
+    const outputChannelId = outputEditor.document.uri.path;
+    if (!(outputChannelId in fcProjectIdsByLogOutputChannelId)) return;
+    const projectId = fcProjectIdsByLogOutputChannelId[outputChannelId];
+    fcLogsRecords[projectId].disposable.dispose();
+    fcLogOutputChannels[projectId].dispose();
+    delete fcLogOutputChannels[projectId];
+    delete fcProjectIdsByLogOutputChannelId[outputChannelId];
   }));
 
   context.subscriptions.push(vscode.commands.registerCommand('wh0.fishcracker.term_command', async () => {

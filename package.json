@@ -31,6 +31,11 @@
         "title": "Open Glitch Logs"
       },
       {
+        "command": "wh0.fishcracker.close_logs",
+        "title": "Disconnect",
+        "icon": "$(debug-disconnect)"
+      },
+      {
         "command": "wh0.fishcracker.term_command",
         "title": "Open Glitch Terminal"
       },
@@ -39,6 +44,21 @@
         "title": "Close Glitch Connection"
       }
     ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "wh0.fishcracker.close_logs",
+          "when": "false"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "wh0.fishcracker.close_logs",
+          "when": "view == workbench.panel.output && resourceFilename =~ /^wh0\\.fishcracker\\.Glitch Logs /",
+          "group": "navigation"
+        }
+      ]
+    },
     "terminal": {
       "profiles": [
         {
