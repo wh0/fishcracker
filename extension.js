@@ -1311,6 +1311,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
     if (!await fcEnsureAuthInteractive()) return;
     const projectInfo = await fcGetProjectInfoHowever();
     if (!projectInfo) return;
+    await fcOtGetReadyClient(projectInfo.id);
     if (!(projectInfo.id in fcLogOutputChannels)) {
       const name = `Glitch Logs (${projectInfo.name})`;
       const id = `${context.extension.id}.${name}`;
@@ -1319,7 +1320,6 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
       fcLogOutputChannels[projectInfo.id] = logOutputChannel;
       fcProjectIdsByLogOutputChannelId[id] = projectInfo.id;
     }
-    await fcOtGetReadyClient(projectInfo.id);
     const logOutputChannel = fcLogOutputChannels[projectInfo.id];
     fcStreamLogs(projectInfo.id, logOutputChannel);
     logOutputChannel.show();
