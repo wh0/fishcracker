@@ -52,24 +52,22 @@ async function glitchProjectFromDomain(/** @type {string} */ persistentToken, /*
   return body[domain];
 }
 
-async function glitchAllProjects(/** @type {string} */ persistentToken) {
-  const { user } = await glitchBoot(persistentToken);
+async function glitchUserProjectsRecent(/** @type {string} */ persistentToken) {
+  const {user} = await glitchBoot(persistentToken);
+  const projects = [];
   let hasMoreProjectsToFetch = true;
-  let pageParam = "";
-  let projects = [];
+  let pageParam = '';
   while (hasMoreProjectsToFetch) {
     const res = await fetch(`https://api.glitch.com/v1/users/${user.id}/projects?limit=100&orderKey=createdAt&orderDirection=DESC${pageParam}`, {
       headers: {
         'Authorization': persistentToken,
       },
     });
-    if (!res.ok) {
-      throw new Error(`Glitch projects recent response ${res.status} not ok, body ${await res.text()}`);
-    }
+    if (!res.ok) throw new Error(`Glitch users projects response ${res.status} not ok, body ${await res.text()}`);
     const body = await res.json();
     projects.push(...body.items);
     hasMoreProjectsToFetch = body.hasMore;
-    pageParam = `&lastOrderValue=${encodeURIComponent(body.lastOrderValue)}`
+    pageParam = `&lastOrderValue=${encodeURIComponent(body.lastOrderValue)}`;
   }
   return projects;
 }
@@ -564,8 +562,8 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
 
   async function fcPromptNewProjectInfo() {
     const persistentToken = await fcGetPersistentTokenQuiet();
-    const userProjects = await glitchAllProjects(persistentToken);
-    const projectDomainPrompted = await vscode.window.showQuickPick(
+    const userProjects = await glitchUserProjectsRecent(persistentToken);
+    const itemPrompted = await vscode.window.showQuickPick(
       [
         ...userProjects.map((project) => ({
           label: project.domain,
@@ -573,14 +571,14 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
         })),
       ],
       {
-        title: "Enter project domain",
+        title: 'Project',
         ignoreFocusOut: true,
-      }
+      },
     );
-    if (!projectDomainPrompted) return null;
+    if (!itemPrompted) return null;
     const project = await glitchProjectFromDomain(
       persistentToken,
-      projectDomainPrompted.label
+      itemPrompted.label,
     );
     return fcProjectInfoFromProject(project);
   }
