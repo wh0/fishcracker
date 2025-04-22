@@ -566,6 +566,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
     const itemPrompted = await vscode.window.showQuickPick(
       [
         ...userProjects.map((project) => ({
+          project,
           label: project.domain,
           detail: project.description,
         })),
@@ -576,11 +577,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
       },
     );
     if (!itemPrompted) return null;
-    const project = await glitchProjectFromDomain(
-      persistentToken,
-      itemPrompted.label,
-    );
-    return fcProjectInfoFromProject(project);
+    return fcProjectInfoFromProject(itemPrompted.project);
   }
 
   async function fcPromptProjectInfo() {
