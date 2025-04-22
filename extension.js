@@ -564,13 +564,13 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
     const persistentToken = await fcGetPersistentTokenQuiet();
     const userProjects = await glitchUserProjectsRecent(persistentToken);
     const itemPrompted = await vscode.window.showQuickPick(
-      [
+      /** @type {({project: any} & vscode.QuickPickItem)[]} */ ([
         ...userProjects.map((project) => ({
           project,
           label: project.domain,
           detail: project.description,
         })),
-      ],
+      ]),
       {
         title: 'Project',
         ignoreFocusOut: true,
@@ -583,7 +583,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
   async function fcPromptProjectInfo() {
     const workspaceFolders = fcGetWorkspaceFolders();
     if (workspaceFolders.length >= 1) {
-      const /** @type {({workspaceFolder: vscode.WorkspaceFolder, label: string} | {other: true, label: string})[]} */ items = workspaceFolders.map((workspaceFolder) => ({workspaceFolder, label: workspaceFolder.name}));
+      const /** @type {(({workspaceFolder: vscode.WorkspaceFolder} | {other: true}) & vscode.QuickPickItem)[]} */ items = workspaceFolders.map((workspaceFolder) => ({workspaceFolder, label: workspaceFolder.name}));
       items.push({other: true, label: 'Other'});
       const itemPrompted = await vscode.window.showQuickPick(items);
       if (!itemPrompted) return null;
