@@ -458,11 +458,11 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
 
   const fcAuthItems = [
     {
-      label: 'Use Sign-in Code',
+      label: 'Use Sign-in Code...',
       async run() {
         const codePrompted = await vscode.window.showInputBox({
           title: 'Sign in to Glitch',
-          prompt: 'Code',
+          placeHolder: 'Code',
           ignoreFocusOut: true,
         });
         if (!codePrompted) return null;
@@ -478,11 +478,11 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
       },
     },
     {
-      label: 'Use Persistent Token',
+      label: 'Use Persistent Token...',
       async run() {
         const persistentTokenPrompted = await vscode.window.showInputBox({
           title: 'Sign in to Glitch',
-          prompt: 'Persistent Token',
+          placeHolder: 'Persistent token',
           password: true,
           ignoreFocusOut: true,
         });
@@ -679,7 +679,10 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
     if (workspaceFolders.length >= 1) {
       const /** @type {(({workspaceFolder: vscode.WorkspaceFolder} | {other: true}) & vscode.QuickPickItem)[]} */ items = workspaceFolders.map((workspaceFolder) => ({workspaceFolder, label: workspaceFolder.name}));
       items.push({other: true, label: 'Other'});
-      const itemPrompted = await vscode.window.showQuickPick(items);
+      const itemPrompted = await vscode.window.showQuickPick(items, {
+        title: 'Select Glitch Project',
+        placeHolder: 'Project domain',
+      });
       if (!itemPrompted) return null;
       if ('workspaceFolder' in itemPrompted) return fcProjectInfoFromWorkspaceFolder(itemPrompted.workspaceFolder);
     }
@@ -1495,7 +1498,10 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
         },
       });
     }
-    const itemsPrompted = await vscode.window.showQuickPick(items, {canPickMany: true});
+    const itemsPrompted = await vscode.window.showQuickPick(items, {
+      title: 'Close Glitch Connection',
+      canPickMany: true,
+    });
     if (!itemsPrompted) return;
     itemsPrompted.forEach((item) => {
       item.run();

@@ -12,7 +12,7 @@
     "commands": [
       {
         "command": "wh0.fishcracker.auth",
-        "title": "Sign in to Glitch"
+        "title": "Sign in to Glitch..."
       },
       {
         "command": "wh0.fishcracker.logout",
@@ -20,7 +20,7 @@
       },
       {
         "command": "wh0.fishcracker.open_project",
-        "title": "Open Glitch Project"
+        "title": "Open Glitch Project..."
       },
       {
         "command": "wh0.fishcracker.request_join",
@@ -41,7 +41,7 @@
       },
       {
         "command": "wh0.fishcracker.close",
-        "title": "Close Glitch Connection"
+        "title": "Close Glitch Connection..."
       }
     ],
     "menus": {
