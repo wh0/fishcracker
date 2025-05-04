@@ -535,7 +535,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
     });
   }
 
-  async function fcProjectInfoFromProject(/** @type {{id: string, domain: string}} */ project) {
+  function fcProjectInfoFromProject(/** @type {{id: string, domain: string}} */ project) {
     return /** @type {FcProjectInfo} */ ({
       id: project.id,
       name: project.domain,
