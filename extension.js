@@ -52,12 +52,10 @@ async function glitchProjectFromDomain(/** @type {string} */ persistentToken, /*
   return body[domain];
 }
 
-async function glitchUserProjectsRecent(/** @type {string} */ persistentToken) {
+async function* glitchUserProjectsRecent(/** @type {string} */ persistentToken) {
   const {user} = await glitchBoot(persistentToken);
-  const projects = [];
-  let hasMoreProjectsToFetch = true;
   let pageParam = '';
-  while (hasMoreProjectsToFetch) {
+  while (true) {
     const res = await fetch(`https://api.glitch.com/v1/users/${user.id}/projects?limit=100&orderKey=createdAt&orderDirection=DESC${pageParam}`, {
       headers: {
         'Authorization': persistentToken,
@@ -65,11 +63,10 @@ async function glitchUserProjectsRecent(/** @type {string} */ persistentToken) {
     });
     if (!res.ok) throw new Error(`Glitch users projects response ${res.status} not ok, body ${await res.text()}`);
     const body = await res.json();
-    projects.push(...body.items);
-    hasMoreProjectsToFetch = body.hasMore;
+    yield /** @type {any[]} */ (body.items);
+    if (!body.hasMore) break;
     pageParam = `&lastOrderValue=${encodeURIComponent(body.lastOrderValue)}`;
   }
-  return projects;
 }
 
 function glitchOt(/** @type {string} */ persistentToken, /** @type {string} */ projectId) {
@@ -562,20 +559,117 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
 
   async function fcPromptNewProjectInfo() {
     const persistentToken = await fcGetPersistentTokenQuiet();
-    const userProjects = await glitchUserProjectsRecent(persistentToken);
-    const itemPrompted = await vscode.window.showQuickPick(
-      /** @type {({project: any} & vscode.QuickPickItem)[]} */ ([
-        ...userProjects.map((project) => ({
-          project,
-          label: project.domain,
-          detail: project.description,
-        })),
-      ]),
-      {
-        title: 'Project',
-        ignoreFocusOut: true,
-      },
-    );
+    const /** @type {vscode.QuickPick<{project: any} & vscode.QuickPickItem>} */ quickPick = vscode.window.createQuickPick();
+    quickPick.title = 'Select Glitch Project';
+    quickPick.placeholder = 'Project domain';
+    quickPick.busy = true;
+    quickPick.ignoreFocusOut = true;
+    quickPick.matchOnDetail = true;
+
+    let disposed = false;
+
+    let userProjectsLoading = true;
+    let projectByDomainLoading = false;
+
+    function updateBusy() {
+      if (disposed) return;
+      quickPick.busy = userProjectsLoading || projectByDomainLoading;
+    }
+
+    const /** @type {({project: any} & vscode.QuickPickItem)[]} */ userProjectItems = [];
+    const /** @type {{[projectId: string]: true}} */ userProjectIds = {};
+    let /** @type {{project: any} & vscode.QuickPickItem | null} */ projectByDomainItem = null;
+
+    function updateItems() {
+      if (disposed) return;
+      const items = [];
+      if (projectByDomainItem && !(projectByDomainItem.project.id in userProjectIds)) {
+        items.push(projectByDomainItem);
+      }
+      items.push(...userProjectItems);
+      quickPick.items = items;
+    }
+
+    (async () => {
+      try {
+        for await (const projects of glitchUserProjectsRecent(persistentToken)) {
+          if (disposed) break;
+          userProjectItems.push(...projects.map((project) => ({project, label: project.domain, detail: project.description})));
+          for (const project of projects) {
+            userProjectIds[project.id] = true;
+          }
+          updateItems();
+        }
+      } catch (e) {
+        console.error(e);
+      } finally {
+        userProjectsLoading = false;
+        updateBusy();
+      }
+    })();
+
+    const itemPromptedPromised = new Promise((resolve, reject) => {
+      quickPick.onDidHide(() => {
+        if (!disposed) {
+          disposed = true;
+          quickPick.dispose();
+          resolve(null);
+        }
+      });
+      quickPick.onDidAccept(() => {
+        if (!disposed) {
+          disposed = true;
+          quickPick.dispose();
+          resolve(quickPick.selectedItems[0]);
+        }
+      });
+    });
+
+    let projectByDomainDirty = false;
+    let projectByDomainSettling = false;
+
+    async function maybeLoadProjectByDomain() {
+      if (disposed) return;
+      if (projectByDomainLoading) return;
+      if (!projectByDomainDirty) return;
+      if (projectByDomainSettling) return;
+      const value = quickPick.value;
+      projectByDomainDirty = false;
+      if (!value) {
+        projectByDomainItem = null;
+        updateItems();
+        return;
+      }
+      projectByDomainLoading = true;
+      updateBusy();
+      try {
+        const project = await glitchProjectFromDomain(persistentToken, value);
+        if (disposed) return;
+        projectByDomainItem = {project, label: project.domain, detail: project.description, alwaysShow: true};
+        updateItems();
+      } catch (e) {
+        console.error(e);
+      } finally {
+        projectByDomainLoading = false;
+        updateBusy();
+        maybeLoadProjectByDomain();
+      }
+    }
+
+    quickPick.onDidChangeValue((value) => {
+      if (!projectByDomainDirty) {
+        projectByDomainDirty = true;
+        projectByDomainSettling = true;
+        setTimeout(() => {
+          projectByDomainSettling = false;
+          maybeLoadProjectByDomain();
+        }, 200);
+      }
+    });
+
+    quickPick.show();
+
+    const itemPrompted = await itemPromptedPromised;
     if (!itemPrompted) return null;
     return fcProjectInfoFromProject(itemPrompted.project);
   }
