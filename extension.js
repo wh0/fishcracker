@@ -561,7 +561,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
     const persistentToken = await fcGetPersistentTokenQuiet();
     const /** @type {vscode.QuickPick<{project: any} & vscode.QuickPickItem>} */ quickPick = vscode.window.createQuickPick();
     quickPick.title = 'Select Glitch Project';
-    quickPick.placeholder = 'Project domain';
+    quickPick.placeholder = 'Project name';
     quickPick.busy = true;
     quickPick.ignoreFocusOut = true;
     quickPick.matchOnDetail = true;
@@ -681,7 +681,7 @@ exports.activate = (/** @type {vscode.ExtensionContext} */ context) => {
       items.push({other: true, label: 'Other'});
       const itemPrompted = await vscode.window.showQuickPick(items, {
         title: 'Select Glitch Project',
-        placeHolder: 'Project domain',
+        placeHolder: 'Project name',
       });
       if (!itemPrompted) return null;
       if ('workspaceFolder' in itemPrompted) return fcProjectInfoFromWorkspaceFolder(itemPrompted.workspaceFolder);
