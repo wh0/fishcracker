@@ -95,7 +95,7 @@
   },
   "engines": {
     "node": ">=16",
-    "vscode": "^1.98.0"
+    "vscode": "^1.74.0"
   },
   "dependencies": {
     "socket.io-client": "^2.5.0",
@@ -103,7 +103,7 @@
   },
   "devDependencies": {
     "@types/socket.io-client": "^1.4.36",
-    "@types/vscode": "^1.98.0",
+    "@types/vscode": "^1.74.0",
     "@types/ws": "^7.4.7"
   }
 }
