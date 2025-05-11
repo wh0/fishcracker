@@ -12,4 +12,4 @@ if [ ! -e "/tmp/node-$version-$build" ]; then
   fi
   (cd /tmp && tar -xf "node-$version-$build.tar.gz")
 fi
-PATH="/tmp/node-$version-$build/bin:$PATH" exec npx --cache "/tmp/npm-cache/${version#v}" @vscode/vsce "$@"
+PATH="/tmp/node-$version-$build/bin:$PATH" npm_config_cache="/tmp/npm-cache/${version#v}" exec npx @vscode/vsce "$@"
