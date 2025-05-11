@@ -4,7 +4,7 @@ rm -rf \
   ~/greeter/workbench.html \
   ~/greeter/callback.html \
   ~/greeter/static/build
-npx @vscode/test-web \
+~/new-node.sh npx @vscode/test-web \
   --quality stable \
   --esm \
   --port "$TW_PORT" \
