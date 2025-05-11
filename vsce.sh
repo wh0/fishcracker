@@ -1,7 +1,7 @@
 #!/bin/sh -eux
 build=linux-x64-glibc-217
-version=v22.14.0
-tarball_sha256=835e9acb99f0a6dd935c084f83e5cb97c073a7e94134fb43b0667050935a2eb2
+version=v22.15.0
+tarball_sha256=0cc56e95e896c9946c615a4cfcee9f63704166fe48a88636242f9911ebdaa847
 if [ ! -e "/tmp/node-$version-$build" ]; then
   if [ ! -e "/tmp/node-$version-$build.tar.gz" ]; then
     rm -f "/tmp/node-$version-$build.tar.gz.tmp"
